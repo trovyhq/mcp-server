@@ -81,7 +81,7 @@ const TOOLS = [
   {
     name: 'list_tasks',
     description:
-      'List tasks in a project. Either the project id or its key (e.g. "TF") works. Optional filters by status and assignee.',
+      'List tasks in a single project. Either the project id or its key (e.g. "TF") works. For tasks across ALL projects assigned to the current user, use `list_my_tasks` instead.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -97,6 +97,22 @@ const TOOLS = [
         limit: { type: 'number', description: 'Max tasks to return. Default 50.' },
       },
       required: ['project_key_or_id'],
+    },
+  },
+  {
+    name: 'list_my_tasks',
+    description:
+      'List every task assigned to the current user across ALL their projects. The right tool when the user says "show my tasks", "what am I working on", "my open tickets". Optional status filter. Returns up to 100 tasks ordered by priority, then due date.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          enum: ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED', 'CANCELLED'],
+          description: 'Optional. If set, only return tasks in that status.',
+        },
+        limit: { type: 'number', description: 'Max tasks to return. Default 50, max 100.' },
+      },
     },
   },
   {
@@ -223,6 +239,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           limit,
         });
         return ok(r.tasks.map(formatTask));
+      }
+
+      case 'list_my_tasks': {
+        const status = a.status as any;
+        const limit = Math.min(Number(a.limit ?? 50), 100);
+        const r = await tf.listMyAssignedTasks({
+          status,
+          limit,
+        });
+        return ok({
+          count: r.tasks.length,
+          tasks: r.tasks.map(formatTask),
+        });
       }
 
       case 'get_task': {
