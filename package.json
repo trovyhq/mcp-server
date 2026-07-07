@@ -1,0 +1,49 @@
+{
+  "name": "@taskflow/mcp-server",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for TaskFlow — drive TaskFlow from Claude Desktop, Cursor, or any MCP-aware AI client.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "taskflow-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run typecheck && npm run build"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "keywords": [
+    "taskflow",
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "claude"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aristidekamara/taskflow-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aristidekamara/taskflow-mcp-server/issues"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "@taskflow/client": "file:../taskflow-client"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.5",
+    "typescript": "^5.6.2"
+  }
+}
