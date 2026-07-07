@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * @taskflow/mcp-server — MCP (Model Context Protocol) server for TaskFlow.
+ * @taskflowapp/mcp-server — MCP (Model Context Protocol) server for TaskFlow.
  *
  * Exposes TaskFlow as a set of tools that any MCP-aware client (Claude
  * Desktop, Cursor, Continue, Cline, etc.) can call. Running, e.g.:
  *
- *     npx -y @taskflow/mcp-server
+ *     npx -y @taskflowapp/mcp-server
  *
  * reads the token from the `TASKFLOW_TOKEN` env var (and `TASKFLOW_API_URL`,
  * defaulting to `http://localhost:3000`) and serves tools over stdio.
@@ -29,7 +29,7 @@ import {
   McpError,
   ErrorCode,
 } from '@modelcontextprotocol/sdk/types.js';
-import { TaskFlowClient, TaskFlowError, parseTaskRef } from '@taskflow/client';
+import { TaskFlowClient, TaskFlowError, parseTaskRef } from '@taskflowapp/sdk';
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────
 

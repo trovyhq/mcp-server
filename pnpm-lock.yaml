@@ -11,7 +11,7 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^0.6.0
         version: 0.6.1
-      '@taskflow/client':
+      '@taskflowapp/sdk':
         specifier: file:../taskflow-client
         version: file:../taskflow-client
     devDependencies:
@@ -27,7 +27,7 @@ packages:
   '@modelcontextprotocol/sdk@0.6.1':
     resolution: {integrity: sha512-OkVXMix3EIbB5Z6yife2XTrSlOnVvCLR1Kg91I4pYFEsV9RbnoyQVScXCuVhGaZHOnTZgso8lMQN1Po2TadGKQ==}
 
-  '@taskflow/client@file:../taskflow-client':
+  '@taskflowapp/sdk@file:../taskflow-client':
     resolution: {directory: ../taskflow-client, type: directory}
     engines: {node: '>=18.17.0'}
 
@@ -98,7 +98,7 @@ snapshots:
       raw-body: 3.0.2
       zod: 3.25.76
 
-  '@taskflow/client@file:../taskflow-client': {}
+  '@taskflowapp/sdk@file:../taskflow-client': {}
 
   '@types/node@20.19.43':
     dependencies:

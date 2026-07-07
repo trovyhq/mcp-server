@@ -1,4 +1,4 @@
-# @taskflow/mcp-server
+# @taskflowapp/mcp-server
 
 [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server for TaskFlow. Lets any MCP-aware client (Claude Desktop, Cursor, Cline, Continue, …) read and write your TaskFlow data through natural conversation.
 
@@ -31,7 +31,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) /
   "mcpServers": {
     "taskflow": {
       "command": "npx",
-      "args": ["-y", "@taskflow/mcp-server"],
+      "args": ["-y", "@taskflowapp/mcp-server"],
       "env": {
         "TASKFLOW_API_URL": "https://api.taskflow.app",
         "TASKFLOW_TOKEN": "tfp_your-token-here"
@@ -49,7 +49,7 @@ Restart Claude Desktop. You should see a 🔧 icon listing 8 TaskFlow tools.
 
 ```
 Name: taskflow
-Command: npx -y @taskflow/mcp-server
+Command: npx -y @taskflowapp/mcp-server
 Env: TASKFLOW_API_URL=https://api.taskflow.app;TASKFLOW_TOKEN=tfp_your-token
 ```
 
@@ -62,7 +62,7 @@ Same shape — they all use `command` + `args` + `env` for stdio MCP servers.
 ```bash
 # From the repo root
 pnpm install
-pnpm --filter @taskflow/mcp-server build
+pnpm --filter @taskflowapp/mcp-server build
 
 # Run with explicit token
 TASKFLOW_API_URL=http://localhost:3000 TASKFLOW_TOKEN=tfp_xxx node integrations/mcp-server/dist/index.js
