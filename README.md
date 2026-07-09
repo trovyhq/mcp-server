@@ -33,7 +33,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) /
       "command": "npx",
       "args": ["-y", "@trovyhq/mcp-server"],
       "env": {
-        "TROVY_API_URL": "https://api.trovy.app",
+        "TROVY_API_URL": "https://trovy.app",
         "TROVY_TOKEN": "tfp_your-token-here"
       }
     }
@@ -50,7 +50,7 @@ Restart Claude Desktop. You should see a 🔧 icon listing 8 Trovy tools.
 ```
 Name: trovy
 Command: npx -y @trovyhq/mcp-server
-Env: TROVY_API_URL=https://api.trovy.app;TROVY_TOKEN=tfp_your-token
+Env: TROVY_API_URL=https://trovy.app;TROVY_TOKEN=tfp_your-token
 ```
 
 #### Cline / Continue / others
