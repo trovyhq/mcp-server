@@ -1,13 +1,13 @@
 {
-  "name": "@taskflowapp/mcp-server",
-  "version": "0.2.1",
-  "description": "Model Context Protocol server for TaskFlow \u2014 drive TaskFlow from Claude Desktop, Cursor, or any MCP-aware AI client.",
+  "name": "@trovyhq/mcp-server",
+  "version": "1.0.0",
+  "description": "Model Context Protocol server for Trovy — drive Trovy from Claude Desktop, Cursor, or any MCP-aware AI client.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "taskflow-mcp": "./dist/index.js"
+    "trovy-mcp": "./dist/index.js"
   },
   "files": [
     "dist",
@@ -25,22 +25,23 @@
     "node": ">=18.17.0"
   },
   "keywords": [
-    "taskflow",
+    "trovy",
     "mcp",
     "model-context-protocol",
     "ai-agents",
-    "claude"
+    "claude",
+    "taskflow"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/aristidekamara/taskflow-mcp-server.git"
+    "url": "https://github.com/trovyhq/mcp-server.git"
   },
   "bugs": {
-    "url": "https://github.com/aristidekamara/taskflow-mcp-server/issues"
+    "url": "https://github.com/trovyhq/mcp-server/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.6.0",
-    "@taskflowapp/sdk": "^0.2.1"
+    "@trovyhq/sdk": "file:../taskflow-client"
   },
   "devDependencies": {
     "@types/node": "^20.16.5",
