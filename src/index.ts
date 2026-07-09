@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * @taskflowapp/mcp-server — MCP (Model Context Protocol) server for TaskFlow.
+ * @trovyhq/mcp-server — MCP (Model Context Protocol) server for Trovy.
  *
- * Exposes TaskFlow as a set of tools that any MCP-aware client (Claude
+ * Exposes Trovy as a set of tools that any MCP-aware client (Claude
  * Desktop, Cursor, Continue, Cline, Codex, etc.) can call. Running, e.g.:
  *
- *     npx -y @taskflowapp/mcp-server
+ *     npx -y @trovyhq/mcp-server
  *
- * reads the token from the `TASKFLOW_TOKEN` env var (and `TASKFLOW_API_URL`,
+ * reads the token from the `TROVY_TOKEN` env var (and `TROVY_API_URL`,
  * defaulting to `http://localhost:3000`) and serves tools over stdio.
  *
  * Tools exposed (19 in v0.2.0, all bounded by the user's account permissions):
@@ -54,26 +54,26 @@ import {
   McpError,
   ErrorCode,
 } from '@modelcontextprotocol/sdk/types.js';
-import { TaskFlowClient, TaskFlowError, parseTaskRef } from '@taskflowapp/sdk';
+import { TrovyClient, TrovyError, parseTaskRef } from '@trovyhq/sdk';
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────
 
-const apiUrl = process.env.TASKFLOW_API_URL ?? 'http://localhost:3000';
-const token = process.env.TASKFLOW_TOKEN;
+const apiUrl = process.env.TROVY_API_URL ?? 'http://localhost:3000';
+const token = process.env.TROVY_TOKEN;
 
 if (!token) {
   process.stderr.write(
-    'taskflow-mcp: TASKFLOW_TOKEN env var is required.\n' +
-      'Generate one at /settings/api-tokens in the TaskFlow web UI.\n'
+    'trovy-mcp: TROVY_TOKEN env var is required.\n' +
+      'Generate one at /settings/api-tokens in the Trovy web UI.\n'
   );
   process.exit(1);
 }
 
-const tf = new TaskFlowClient({ apiUrl, token });
+const tf = new TrovyClient({ apiUrl, token });
 
 const server = new Server(
   {
-    name: 'taskflow',
+    name: 'trovy',
     version: '0.2.0',
   },
   {
@@ -690,10 +690,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
   } catch (e: any) {
     if (e instanceof McpError) throw e;
-    if (e instanceof TaskFlowError) {
+    if (e instanceof TrovyError) {
       throw new McpError(
         e.status >= 500 ? ErrorCode.InternalError : ErrorCode.InvalidRequest,
-        `TaskFlow API ${e.status}: ${e.message}`,
+        `Trovy API ${e.status}: ${e.message}`,
         e.body as any
       );
     }
@@ -841,8 +841,8 @@ function ok(data: unknown) {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // Use stderr — stdout is the MCP channel and must stay untouched.
-  process.stderr.write(`taskflow-mcp ready — api=${apiUrl} version=0.2.0\n`);
+  process.stderr.write(`trovy-mcp ready — api=${apiUrl} version=0.2.0\n`);
 })().catch((e) => {
-  process.stderr.write(`taskflow-mcp fatal: ${e?.message ?? e}\n`);
+  process.stderr.write(`trovy-mcp fatal: ${e?.message ?? e}\n`);
   process.exit(1);
 });
