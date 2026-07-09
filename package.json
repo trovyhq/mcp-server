@@ -1,7 +1,7 @@
 {
   "name": "@taskflowapp/mcp-server",
-  "version": "0.2.0",
-  "description": "Model Context Protocol server for TaskFlow — drive TaskFlow from Claude Desktop, Cursor, or any MCP-aware AI client.",
+  "version": "0.2.1",
+  "description": "Model Context Protocol server for TaskFlow \u2014 drive TaskFlow from Claude Desktop, Cursor, or any MCP-aware AI client.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -40,7 +40,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.6.0",
-    "@taskflowapp/sdk": "^0.2.0"
+    "@taskflowapp/sdk": "^0.2.1"
   },
   "devDependencies": {
     "@types/node": "^20.16.5",
