@@ -40,7 +40,7 @@
     "url": "https://github.com/trovyhq/mcp-server/issues"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.6.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@trovyhq/sdk": "^1.0.1"
   },
   "devDependencies": {
