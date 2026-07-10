@@ -10,7 +10,7 @@
  * reads the token from the `TROVY_TOKEN` env var (and `TROVY_API_URL`,
  * defaulting to `http://localhost:3000`) and serves tools over stdio.
  *
- * Tools exposed (20 in v1.0.2, all bounded by the user's account permissions):
+ * Tools exposed (20 in v1.0.3, all bounded by the user's account permissions):
  *
  *   Projects:
  *     list_projects
@@ -74,7 +74,7 @@ const tf = new TrovyClient({ apiUrl, token });
 const server = new Server(
   {
     name: 'trovy',
-    version: '1.0.2',
+    version: '1.0.3',
   },
   {
     capabilities: { tools: {} },
@@ -841,7 +841,7 @@ function ok(data: unknown) {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // Use stderr — stdout is the MCP channel and must stay untouched.
-  process.stderr.write(`trovy-mcp ready — api=${apiUrl} version=0.2.0\n`);
+  process.stderr.write(`trovy-mcp ready — api=${apiUrl} version=1.0.3\n`);
 })().catch((e) => {
   process.stderr.write(`trovy-mcp fatal: ${e?.message ?? e}\n`);
   process.exit(1);

@@ -41,7 +41,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) /
 }
 ```
 
-Restart Claude Desktop. You should see a 🔧 icon listing 8 Trovy tools.
+Restart Claude Desktop. You should see a 🔧 icon listing the Trovy tools.
 
 #### Cursor
 
@@ -83,10 +83,23 @@ The npm package uses the local `stdio` transport. ChatGPT web requires a deploye
 ```bash
 # From the repo root
 pnpm install
-pnpm --filter @trovyhq/mcp-server build
+pnpm run build
 
 # Run with explicit token
-TROVY_API_URL=http://localhost:3000 TROVY_TOKEN=tfp_xxx node integrations/mcp-server/dist/index.js
+TROVY_API_URL=http://localhost:3000 TROVY_TOKEN=tfp_xxx node dist/index.js
+
+# Verify the published package shape from a fresh install
+pnpm run smoke:pack
+```
+
+## Release
+
+The package depends on the published `@trovyhq/sdk`; publish the SDK first if its API changed.
+
+For the MCP server:
+
+```bash
+npm publish --provenance --access public
 ```
 
 ## License
