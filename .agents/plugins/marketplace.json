@@ -1,0 +1,20 @@
+{
+  "name": "trovy-public",
+  "interface": {
+    "displayName": "Trovy"
+  },
+  "plugins": [
+    {
+      "name": "trovy",
+      "source": {
+        "source": "local",
+        "path": "./plugins/trovy"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

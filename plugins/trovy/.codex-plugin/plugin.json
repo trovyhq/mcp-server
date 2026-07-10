@@ -1,0 +1,30 @@
+{
+  "name": "trovy",
+  "version": "1.0.2",
+  "description": "Manage projects, tasks, dependencies, comments, time, and notifications in Trovy.",
+  "author": {
+    "name": "Trovy",
+    "url": "https://trovy.app"
+  },
+  "homepage": "https://trovy.app",
+  "repository": "https://github.com/trovyhq/mcp-server",
+  "license": "MIT",
+  "keywords": ["trovy", "tasks", "projects", "productivity", "mcp"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Trovy",
+    "shortDescription": "Plan and update work with Trovy",
+    "longDescription": "Connect Codex to Trovy to find projects and tasks, manage status and dependencies, collaborate through comments, and track work safely.",
+    "developerName": "Trovy",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://trovy.app",
+    "defaultPrompt": [
+      "Show my open Trovy tasks and highlight what needs attention.",
+      "Create a Trovy task from this request and assign the right priority.",
+      "Summarize what I completed in Trovy this week."
+    ],
+    "brandColor": "#6366F1"
+  },
+  "mcpServers": "./.mcp.json"
+}

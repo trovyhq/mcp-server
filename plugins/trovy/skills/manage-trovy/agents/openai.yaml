@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage Trovy"
+  short_description: "Plan, find, and update work in Trovy"
+  default_prompt: "Use Trovy to review my work and update tasks safely."
