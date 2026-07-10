@@ -10,7 +10,7 @@
  * reads the token from the `TROVY_TOKEN` env var (and `TROVY_API_URL`,
  * defaulting to `http://localhost:3000`) and serves tools over stdio.
  *
- * Tools exposed (19 in v0.2.0, all bounded by the user's account permissions):
+ * Tools exposed (20 in v1.0.2, all bounded by the user's account permissions):
  *
  *   Projects:
  *     list_projects
@@ -74,7 +74,7 @@ const tf = new TrovyClient({ apiUrl, token });
 const server = new Server(
   {
     name: 'trovy',
-    version: '0.2.0',
+    version: '1.0.2',
   },
   {
     capabilities: { tools: {} },

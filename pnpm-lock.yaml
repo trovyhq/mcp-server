@@ -12,8 +12,8 @@ importers:
         specifier: ^0.6.0
         version: 0.6.1
       '@trovyhq/sdk':
-        specifier: file:../sdk
-        version: file:../sdk
+        specifier: ^1.0.1
+        version: 1.0.1
     devDependencies:
       '@types/node':
         specifier: ^20.16.5
@@ -27,8 +27,8 @@ packages:
   '@modelcontextprotocol/sdk@0.6.1':
     resolution: {integrity: sha512-OkVXMix3EIbB5Z6yife2XTrSlOnVvCLR1Kg91I4pYFEsV9RbnoyQVScXCuVhGaZHOnTZgso8lMQN1Po2TadGKQ==}
 
-  '@trovyhq/sdk@file:../sdk':
-    resolution: {directory: ../sdk, type: directory}
+  '@trovyhq/sdk@1.0.1':
+    resolution: {integrity: sha512-/leSvzY+78MKC/Qis7mrITY1qjUDbFo5MdtRtlIyFimLKO5IU+tffZybcis2/J2jq8HqWDe6Flt1Gfo4fqvMjw==}
     engines: {node: '>=18.17.0'}
 
   '@types/node@20.19.43':
@@ -98,7 +98,7 @@ snapshots:
       raw-body: 3.0.2
       zod: 3.25.76
 
-  '@trovyhq/sdk@file:../sdk': {}
+  '@trovyhq/sdk@1.0.1': {}
 
   '@types/node@20.19.43':
     dependencies:

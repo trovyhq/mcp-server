@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "trovy": {
+      "command": "npx",
+      "args": ["-y", "@trovyhq/mcp-server@latest"],
+      "env": {
+        "TROVY_API_URL": "https://trovy.app"
+      },
+      "env_vars": ["TROVY_TOKEN"],
+      "startup_timeout_sec": 30,
+      "default_tools_approval_mode": "writes"
+    }
+  }
+}

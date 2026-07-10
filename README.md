@@ -10,7 +10,7 @@
 >
 > "What did I ship last week?"
 
-Under the hood the server exposes 8 tools (`list_projects`, `search_tasks`, `list_tasks`, `get_task`, `create_task`, `update_task_status`, `add_comment`, `link_pr`).
+Under the hood the server exposes 20 tools for projects, tasks, dependencies, recurrence, time tracking, users, and notifications.
 
 ## Setup
 
@@ -56,6 +56,27 @@ Env: TROVY_API_URL=https://trovy.app;TROVY_TOKEN=tfp_your-token
 #### Cline / Continue / others
 
 Same shape — they all use `command` + `args` + `env` for stdio MCP servers.
+
+### Codex plugin
+
+The repository includes a public Codex marketplace and the `trovy` plugin. Add the marketplace and install the plugin:
+
+```bash
+codex plugin marketplace add trovyhq/mcp-server
+codex plugin add trovy@trovy-public
+```
+
+Set your token in the environment before starting Codex:
+
+```bash
+export TROVY_TOKEN=tfp_your-token-here
+```
+
+Restart Codex or the ChatGPT desktop app, then start a new task. The plugin forwards `TROVY_TOKEN` to the bundled MCP server and uses `https://trovy.app` by default.
+
+### ChatGPT web
+
+The npm package uses the local `stdio` transport. ChatGPT web requires a deployed Streamable HTTP MCP server published through the OpenAI plugin submission portal. The bundled Codex plugin is ready for local testing and GitHub distribution; public ChatGPT web distribution additionally requires the hosted transport, user authentication, privacy policy, terms, and OpenAI review.
 
 ## Local development
 
