@@ -8,7 +8,7 @@
  *     npx -y @trovyhq/mcp-server
  *
  * reads the token from the `TROVY_TOKEN` env var (and `TROVY_API_URL`,
- * defaulting to `http://localhost:3000`) and serves tools over stdio.
+ * defaulting to `https://app.trovy.app`) and serves tools over stdio.
  *
  * Tools exposed (20 in v1.0.3, all bounded by the user's account permissions):
  *
@@ -58,7 +58,7 @@ import { TrovyClient, TrovyError, parseTaskRef } from '@trovyhq/sdk';
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────
 
-const apiUrl = process.env.TROVY_API_URL ?? 'http://localhost:3000';
+const apiUrl = process.env.TROVY_API_URL ?? 'https://app.trovy.app';
 const token = process.env.TROVY_TOKEN;
 
 if (!token) {

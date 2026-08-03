@@ -33,7 +33,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) /
       "command": "npx",
       "args": ["-y", "@trovyhq/mcp-server"],
       "env": {
-        "TROVY_API_URL": "https://trovy.app",
+        "TROVY_API_URL": "https://app.trovy.app",
         "TROVY_TOKEN": "tfp_your-token-here"
       }
     }
@@ -50,7 +50,7 @@ Restart Claude Desktop. You should see a 🔧 icon listing the Trovy tools.
 ```
 Name: trovy
 Command: npx -y @trovyhq/mcp-server
-Env: TROVY_API_URL=https://trovy.app;TROVY_TOKEN=tfp_your-token
+Env: TROVY_API_URL=https://app.trovy.app;TROVY_TOKEN=tfp_your-token
 ```
 
 #### Cline / Continue / others
@@ -72,7 +72,7 @@ Set your token in the environment before starting Codex:
 export TROVY_TOKEN=tfp_your-token-here
 ```
 
-Restart Codex or the ChatGPT desktop app, then start a new task. The plugin forwards `TROVY_TOKEN` to the bundled MCP server and uses `https://trovy.app` by default.
+Restart Codex or the ChatGPT desktop app, then start a new task. The plugin forwards `TROVY_TOKEN` to the bundled MCP server and uses `https://app.trovy.app` by default.
 
 ### ChatGPT web
 
