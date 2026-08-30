@@ -94,11 +94,11 @@ const server = createServer(async (req, res) => {
     return json(res, 401, { error: 'Unauthorized' });
   }
 
-  if (req.method === 'GET' && req.url === '/api/projects') {
+  if (req.method === 'GET' && req.url === '/api/v1/projects') {
     return json(res, 200, { projects: [project] });
   }
 
-  if (req.method === 'POST' && req.url === '/api/projects/project_1/tasks') {
+  if (req.method === 'POST' && req.url === '/api/v1/projects/project_1/tasks') {
     let raw = '';
     for await (const chunk of req) raw += chunk;
     const body = JSON.parse(raw);
