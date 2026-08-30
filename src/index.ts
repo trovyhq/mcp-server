@@ -125,7 +125,7 @@ const TOOLS = [
         project_key_or_id: { type: 'string', description: 'Project key (e.g. "TF") or id.' },
         status: {
           type: 'string',
-          enum: ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED', 'CANCELLED'],
+          enum: ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED', 'CANCELLED'],
         },
         assignee_me: {
           type: 'boolean',
@@ -146,7 +146,7 @@ const TOOLS = [
       properties: {
         status: {
           type: 'string',
-          enum: ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED', 'CANCELLED'],
+          enum: ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED', 'CANCELLED'],
           description: 'Optional. If set, only return tasks in that status.',
         },
         limit: { type: 'number', description: 'Max tasks to return. Default 50, max 100.' },
@@ -231,7 +231,7 @@ const TOOLS = [
         task_ref: { type: 'string', description: 'Task id or short reference like TF-12.' },
         status: {
           type: 'string',
-          enum: ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED', 'CANCELLED'],
+          enum: ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED', 'CANCELLED'],
         },
       },
       required: ['task_ref', 'status'],
@@ -293,7 +293,7 @@ const TOOLS = [
         },
         status: {
           type: 'string',
-          enum: ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED', 'CANCELLED'],
+          enum: ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED', 'CANCELLED'],
           description: 'For action=setStatus.',
         },
         priority: {
@@ -401,6 +401,92 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'update_task',
+    description: 'Update the editable fields of a task without changing its status.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        task_ref: { type: 'string', description: 'Task id or short reference like TF-12.' },
+        title: { type: 'string' },
+        description: { type: 'string', description: 'Pass an empty string to clear it.' },
+        priority: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] },
+        type: { type: 'string', enum: ['TASK', 'BUG', 'FEATURE', 'IMPROVEMENT', 'EPIC', 'STORY'] },
+        due_date: { type: 'string', description: 'ISO datetime. Pass null to clear it.' },
+        estimate_minutes: { type: 'number', description: 'Estimated effort in minutes.' },
+      },
+      required: ['task_ref'],
+    },
+  },
+  {
+    name: 'delete_task',
+    description: 'Soft-delete a task. This is a write operation and should only be used on an explicit request.',
+    inputSchema: {
+      type: 'object',
+      properties: { task_ref: { type: 'string', description: 'Task id or short reference like TF-12.' } },
+      required: ['task_ref'],
+    },
+  },
+  {
+    name: 'assign_task',
+    description: 'Assign a task to one exact username, or unassign it with `unassign: true`.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        task_ref: { type: 'string', description: 'Task id or short reference like TF-12.' },
+        username: { type: 'string', description: 'Exact username of the assignee.' },
+        unassign: { type: 'boolean', description: 'Clear the current assignee.' },
+      },
+      required: ['task_ref'],
+    },
+  },
+  {
+    name: 'add_checklist_item',
+    description: 'Add one checklist item to a task.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        task_ref: { type: 'string', description: 'Task id or short reference like TF-12.' },
+        title: { type: 'string', description: 'Checklist item text.' },
+      },
+      required: ['task_ref', 'title'],
+    },
+  },
+  {
+    name: 'update_checklist_item',
+    description: 'Rename or mark a single task checklist item complete/incomplete.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        task_ref: { type: 'string', description: 'Task id or short reference like TF-12.' },
+        item_id: { type: 'string' },
+        title: { type: 'string' },
+        completed: { type: 'boolean' },
+      },
+      required: ['task_ref', 'item_id'],
+    },
+  },
+  {
+    name: 'delete_checklist_item',
+    description: 'Delete one checklist item from a task.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        task_ref: { type: 'string', description: 'Task id or short reference like TF-12.' },
+        item_id: { type: 'string' },
+      },
+      required: ['task_ref', 'item_id'],
+    },
+  },
+  {
+    name: 'mark_notification_read',
+    description: 'Mark one notification as read.',
+    inputSchema: {
+      type: 'object',
+      properties: { notification_id: { type: 'string' } },
+      required: ['notification_id'],
+    },
+  },
 ] as const;
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -488,16 +574,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'list_dependencies': {
         const { taskId } = await resolveTask(String(a.task_ref));
-        const r = await tf.listDependencies(taskId);
+        const dependencies = await tf.listDependencies(taskId);
+        const blockedBy = dependencies.filter((dependency: any) => dependency.targetTaskId === taskId);
+        const blocks = dependencies.filter((dependency: any) => dependency.sourceTaskId === taskId);
         return ok({
-          blockedBy: r.blockedBy.map((d) => ({
-            dependencyId: d.id,
-            task: d.dependsOn ? formatRelated(d.dependsOn) : null,
-          })),
-          blocks: r.blocks.map((d) => ({
-            dependencyId: d.id,
-            task: d.task ? formatRelated(d.task) : null,
-          })),
+          blockedBy: await Promise.all(blockedBy.map(async (dependency: any) => ({
+            dependencyId: dependency.id,
+            task: formatRelated((await tf.getTask(dependency.sourceTaskId)).task),
+          }))),
+          blocks: await Promise.all(blocks.map(async (dependency: any) => ({
+            dependencyId: dependency.id,
+            task: formatRelated((await tf.getTask(dependency.targetTaskId)).task),
+          }))),
         });
       }
 
@@ -518,6 +606,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             read: Boolean(n.readAt),
           })),
         });
+      }
+
+      case 'mark_notification_read': {
+        await tf.markNotificationRead(String(a.notification_id));
+        return ok({ ok: true, notificationId: String(a.notification_id) });
       }
 
       // ── Write ───────────────────────────────────────────────────────────
@@ -556,6 +649,69 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return ok(formatTask(task));
       }
 
+      case 'update_task': {
+        const { taskId } = await resolveTask(String(a.task_ref));
+        const patch: Record<string, unknown> = {};
+        if (a.title !== undefined) patch.title = String(a.title);
+        if (a.description !== undefined) patch.description = a.description === '' ? null : String(a.description);
+        if (a.priority !== undefined) patch.priority = String(a.priority);
+        if (a.type !== undefined) patch.type = String(a.type);
+        if (a.due_date !== undefined) patch.dueDate = a.due_date;
+        if (a.estimate_minutes !== undefined) patch.estimateMinutes = Number(a.estimate_minutes);
+        if (!Object.keys(patch).length) {
+          throw new McpError(ErrorCode.InvalidParams, 'Provide at least one field to update');
+        }
+        const { task } = await tf.updateTask(taskId, patch as any);
+        return ok(formatTask(task));
+      }
+
+      case 'delete_task': {
+        const { taskId, task } = await resolveTask(String(a.task_ref));
+        await tf.deleteTask(taskId);
+        return ok({ ok: true, taskRef: `${task.project.key}-${task.number}` });
+      }
+
+      case 'assign_task': {
+        const { taskId } = await resolveTask(String(a.task_ref));
+        if (a.unassign === true) {
+          const { task } = await tf.assignTask(taskId, null);
+          return ok(formatTask(task));
+        }
+        const username = String(a.username ?? '').trim();
+        if (!username) throw new McpError(ErrorCode.InvalidParams, 'username is required unless unassign is true');
+        const { users } = await tf.searchUsers(username);
+        const assignee = users.find((user: any) => user.username?.toLowerCase() === username.toLowerCase());
+        if (!assignee) throw new McpError(ErrorCode.InvalidParams, `No user found with username "${username}"`);
+        const { task } = await tf.assignTask(taskId, assignee.id);
+        return ok(formatTask(task));
+      }
+
+      case 'add_checklist_item': {
+        const { taskId } = await resolveTask(String(a.task_ref));
+        const title = String(a.title ?? '').trim();
+        if (!title) throw new McpError(ErrorCode.InvalidParams, 'title is required');
+        const { task } = await tf.addChecklistItem(taskId, title);
+        return ok(formatTaskFull(task));
+      }
+
+      case 'update_checklist_item': {
+        const { taskId } = await resolveTask(String(a.task_ref));
+        const patch: Record<string, unknown> = {};
+        if (a.title !== undefined) patch.title = String(a.title);
+        if (a.completed !== undefined) patch.completed = Boolean(a.completed);
+        if (!Object.keys(patch).length) {
+          throw new McpError(ErrorCode.InvalidParams, 'Provide title or completed');
+        }
+        const { task } = await tf.updateChecklistItem(taskId, String(a.item_id), patch);
+        return ok(formatTaskFull(task));
+      }
+
+      case 'delete_checklist_item': {
+        const { taskId } = await resolveTask(String(a.task_ref));
+        const { task } = await tf.deleteChecklistItem(taskId, String(a.item_id));
+        return ok(formatTaskFull(task));
+      }
+
       case 'add_comment': {
         const { taskId } = await resolveTask(String(a.task_ref));
         const content = String(a.content ?? '').trim();
@@ -577,7 +733,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new McpError(ErrorCode.InvalidParams, 'pr_url must be a GitHub URL');
         }
         const r = await tf.linkPr(taskId, prUrl);
-        return ok({ taskId, prUrl, task: formatTask(r.task as any) });
+        return ok({ taskId, prUrl, link: r.link });
       }
 
       case 'share_task': {
@@ -645,7 +801,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'add_dependency': {
         const { taskId, task } = await resolveTask(String(a.task_ref));
         const { taskId: blockerId, task: blocker } = await resolveTask(String(a.depends_on_ref));
-        const r = await tf.addDependency(taskId, blockerId);
+        const r = await tf.addDependency(blockerId, taskId);
         return ok({
           taskRef: `${task.project.key}-${task.number}`,
           blockedBy: `${blocker.project.key}-${blocker.number}`,
@@ -656,7 +812,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'remove_dependency': {
         const { taskId, task } = await resolveTask(String(a.task_ref));
         const { taskId: blockerId, task: blocker } = await resolveTask(String(a.depends_on_ref));
-        await tf.removeDependency(taskId, blockerId);
+        const dependencies = await tf.listDependencies(taskId);
+        const dependency = dependencies.find(
+          (candidate: any) => candidate.sourceTaskId === blockerId && candidate.targetTaskId === taskId
+        );
+        if (!dependency) {
+          throw new McpError(ErrorCode.InvalidParams, `${a.depends_on_ref} is not a blocker of ${a.task_ref}`);
+        }
+        await tf.removeDependency(dependency.id);
         return ok({
           ok: true,
           taskRef: `${task.project.key}-${task.number}`,
@@ -785,7 +948,7 @@ function formatTaskFull(t: any) {
   const base = formatTask(t);
   return {
     ...base,
-    checklists: t.checklists ?? [],
+    checklists: t.checklist ?? t.checklists ?? [],
     children: (t.children ?? []).map((c: any) => ({
       id: c.id,
       title: c.title,
@@ -796,14 +959,14 @@ function formatTaskFull(t: any) {
     })),
     comments: (t.comments ?? []).map((c: any) => ({
       id: c.id,
-      content: c.content,
+      content: c.content ?? c.body,
       author: c.author.name ?? c.author.username ?? c.author.email,
       createdAt: c.createdAt,
       editedAt: c.editedAt,
     })),
     attachments: (t.attachments ?? []).map((att: any) => ({
       id: att.id,
-      name: att.name,
+      name: att.name ?? att.filename,
       url: att.url,
       size: att.size,
       mimeType: att.mimeType,
