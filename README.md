@@ -10,7 +10,7 @@
 >
 > "What did I ship last week?"
 
-Under the hood the server exposes 20 tools for projects, tasks, dependencies, recurrence, time tracking, users, and notifications.
+Under the hood the server exposes 27 tools for projects, task lifecycle management, dependencies, recurrence, checklists, time tracking, users, and notifications.
 
 ## Setup
 
