@@ -81,6 +81,15 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+function success(res, data, status = 200) {
+  return json(res, status, {
+    success: true,
+    statusCode: status,
+    data,
+    timestamp: new Date(0).toISOString(),
+  });
+}
+
 const project = {
   id: 'project_1',
   name: 'Smoke Project',
@@ -95,14 +104,14 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && req.url === '/api/v1/projects') {
-    return json(res, 200, { projects: [project] });
+    return success(res, [project]);
   }
 
   if (req.method === 'POST' && req.url === '/api/v1/projects/project_1/tasks') {
     let raw = '';
     for await (const chunk of req) raw += chunk;
     const body = JSON.parse(raw);
-    return json(res, 200, {
+    return success(res, {
       task: {
         id: 'task_1',
         number: 1,

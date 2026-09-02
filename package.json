@@ -1,6 +1,6 @@
 {
   "name": "@trovyhq/mcp-server",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Model Context Protocol server for Trovy — drive Trovy from Claude Desktop, Cursor, or any MCP-aware AI client.",
   "license": "MIT",
   "type": "module",
@@ -45,7 +45,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@trovyhq/sdk": "^1.0.4"
+    "@trovyhq/sdk": "^1.0.5"
   },
   "devDependencies": {
     "@types/node": "^20.16.5",

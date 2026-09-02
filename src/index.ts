@@ -814,7 +814,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { taskId: blockerId, task: blocker } = await resolveTask(String(a.depends_on_ref));
         const dependencies = await tf.listDependencies(taskId);
         const dependency = dependencies.find(
-          (candidate: any) => candidate.sourceTaskId === blockerId && candidate.targetTaskId === taskId
+          (candidate) => candidate.sourceTaskId === blockerId && candidate.targetTaskId === taskId
         );
         if (!dependency) {
           throw new McpError(ErrorCode.InvalidParams, `${a.depends_on_ref} is not a blocker of ${a.task_ref}`);
