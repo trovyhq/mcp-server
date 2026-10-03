@@ -10,10 +10,15 @@
  * reads the token from the `TROVY_TOKEN` env var (and `TROVY_API_URL`,
  * defaulting to `https://api.trovy.app`) and serves tools over stdio.
  *
- * Tools exposed (20 in v1.0.3, all bounded by the user's account permissions):
+ * Tools exposed (36 in v1.0.8, all bounded by the user's account permissions):
  *
  *   Projects:
+ *     list_workspaces
  *     list_projects
+ *     create_project
+ *     get_project
+ *     list_project_labels
+ *     get_project_metrics
  *
  *   Tasks — read:
  *     search_tasks          search across projects/tasks/users
@@ -22,6 +27,8 @@
  *     get_smart_inbox       5 grouped sections (review, mentions, active, recent, stale)
  *     get_task              full detail of one task (comments, attachments, etc.)
  *     list_dependencies     what blocks this task / what this task blocks
+ *     get_task_recurrence
+ *     list_time_entries
  *
  *   Tasks — write:
  *     create_task
@@ -43,6 +50,7 @@
  *     log_time
  *
  *   Users:
+ *     get_current_user      identity associated with the API token
  *     search_users          for @mention / assignment resolution
  *     list_notifications    recent in-app notifications
  */
@@ -74,7 +82,7 @@ const tf = new TrovyClient({ apiUrl, token });
 const server = new Server(
   {
     name: 'trovy',
-    version: '1.0.3',
+    version: '1.0.8',
   },
   {
     capabilities: { tools: {} },
@@ -84,6 +92,18 @@ const server = new Server(
 // ── Tool definitions ───────────────────────────────────────────────────────
 
 const TOOLS = [
+  {
+    name: 'get_current_user',
+    description:
+      'Get the identity associated with the configured Trovy API token. Use this to determine the current user before assigning, filtering, or reporting on their work.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'list_workspaces',
+    description:
+      'List workspaces the current user can access. Use the returned workspace id when creating a project.',
+    inputSchema: { type: 'object', properties: {} },
+  },
   {
     name: 'list_projects',
     description:
@@ -138,6 +158,70 @@ const TOOLS = [
     },
   },
   {
+    name: 'create_project',
+    description:
+      'Create a project in a workspace. This is a write operation; use only when the user explicitly asks to create a project.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspace_id: { type: 'string', description: 'Workspace id from list_workspaces.' },
+        name: { type: 'string', description: 'Project name (2–80 characters).' },
+        key: {
+          type: 'string',
+          description: 'Unique project key: 2–10 letters or digits, beginning with a letter (for example "TF").',
+        },
+        description: { type: 'string', description: 'Optional project description (up to 500 characters).' },
+        color: { type: 'string', description: 'Optional display color, for example "#7c3aed".' },
+        icon: { type: 'string', description: 'Optional icon identifier.' },
+        visibility: { type: 'string', enum: ['PRIVATE', 'TEAM', 'PUBLIC'], description: 'Default: TEAM.' },
+        start_date: { type: 'string', description: 'Optional ISO datetime.' },
+        target_date: { type: 'string', description: 'Optional ISO datetime.' },
+      },
+      required: ['workspace_id', 'name', 'key'],
+    },
+  },
+  {
+    name: 'get_project',
+    description:
+      'Get project details by project key (for example "TF") or id, including visibility and linked GitHub repository.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_key_or_id: { type: 'string', description: 'Project key (for example "TF") or id.' },
+      },
+      required: ['project_key_or_id'],
+    },
+  },
+  {
+    name: 'list_project_labels',
+    description:
+      'List the labels available in a project. Returns label ids, names, and colors; use these to understand a project taxonomy before updating tasks.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_key_or_id: { type: 'string', description: 'Project key (for example "TF") or id.' },
+      },
+      required: ['project_key_or_id'],
+    },
+  },
+  {
+    name: 'get_project_metrics',
+    description:
+      'Get delivery metrics for a project: throughput, cycle and lead time percentiles, completion and blocked rates, WIP, overdue work, bottlenecks, and top shippers.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_key_or_id: { type: 'string', description: 'Project key (for example "TF") or id.' },
+        range_days: {
+          type: 'number',
+          enum: [7, 30, 90],
+          description: 'Reporting window in days. Default 30.',
+        },
+      },
+      required: ['project_key_or_id'],
+    },
+  },
+  {
     name: 'list_my_tasks',
     description:
       'List every task assigned to the current user across ALL their projects. The right tool when the user says "show my tasks", "what am I working on", "my open tickets". Optional status filter. Returns up to 100 tasks ordered by priority, then due date.',
@@ -187,6 +271,30 @@ const TOOLS = [
     name: 'list_dependencies',
     description:
       'For a given task, list tasks that block it (blockedBy) and tasks that it blocks (blocks). Returns the related tasks with their project key, number and status.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        task_ref: { type: 'string', description: 'Task id or short reference like TF-12.' },
+      },
+      required: ['task_ref'],
+    },
+  },
+  {
+    name: 'get_task_recurrence',
+    description:
+      'Get the recurrence rule for a task, or null when it is not recurring. Returns the cadence, next scheduled occurrence, and optional end date.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        task_ref: { type: 'string', description: 'Task id or short reference like TF-12.' },
+      },
+      required: ['task_ref'],
+    },
+  },
+  {
+    name: 'list_time_entries',
+    description:
+      'List time entries for a task and the total number of minutes recorded.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -503,9 +611,81 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       // ── Read ────────────────────────────────────────────────────────────
 
+      case 'get_current_user': {
+        const { user } = await tf.whoami();
+        return ok(formatUser(user));
+      }
+
+      case 'list_workspaces': {
+        const { workspaces } = await tf.listWorkspaces();
+        return ok({
+          count: workspaces.length,
+          workspaces: workspaces.map((workspace) => ({
+            id: workspace.id,
+            name: workspace.name,
+            slug: workspace.slug,
+            kind: workspace.kind,
+            role: workspace.role,
+            description: workspace.description,
+          })),
+        });
+      }
+
       case 'list_projects': {
         const r = await tf.listProjects();
         return ok(r.projects.map(formatProject));
+      }
+
+      case 'get_project': {
+        const { project } = await tf.resolveProjectKeyAndId(String(a.project_key_or_id));
+        return ok(formatProject(project));
+      }
+
+      case 'create_project': {
+        const workspaceId = String(a.workspace_id ?? '').trim();
+        const name = String(a.name ?? '').trim();
+        const key = String(a.key ?? '').trim().toUpperCase();
+        if (!workspaceId) throw new McpError(ErrorCode.InvalidParams, 'workspace_id is required');
+        if (name.length < 2 || name.length > 80) {
+          throw new McpError(ErrorCode.InvalidParams, 'name must contain 2 to 80 characters');
+        }
+        if (!/^[A-Z][A-Z0-9]{1,9}$/.test(key)) {
+          throw new McpError(
+            ErrorCode.InvalidParams,
+            'key must contain 2 to 10 letters or digits and start with a letter'
+          );
+        }
+        const { project } = await tf.createProject({
+          workspaceId,
+          name,
+          key,
+          description: optionalString(a.description),
+          color: optionalString(a.color),
+          icon: optionalString(a.icon),
+          visibility: a.visibility as 'PRIVATE' | 'TEAM' | 'PUBLIC' | undefined,
+          startDate: optionalString(a.start_date),
+          targetDate: optionalString(a.target_date),
+        });
+        return ok(formatProject(project));
+      }
+
+      case 'list_project_labels': {
+        const { id: projectId } = await tf.resolveProjectKeyAndId(String(a.project_key_or_id));
+        const { labels } = await tf.listProjectLabels(projectId);
+        return ok({
+          count: labels.length,
+          labels: labels.map((label) => ({ id: label.id, name: label.name, color: label.color })),
+        });
+      }
+
+      case 'get_project_metrics': {
+        const projectRef = String(a.project_key_or_id);
+        const rangeDays = a.range_days === undefined ? 30 : Number(a.range_days);
+        if (![7, 30, 90].includes(rangeDays)) {
+          throw new McpError(ErrorCode.InvalidParams, 'range_days must be one of 7, 30, or 90');
+        }
+        const metrics = await tf.metrics(projectRef, rangeDays as 7 | 30 | 90);
+        return ok(metrics);
       }
 
       case 'search_tasks': {
@@ -586,6 +766,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             dependencyId: dependency.id,
             task: formatRelated((await tf.getTask(dependency.targetTaskId)).task),
           }))),
+        });
+      }
+
+      case 'get_task_recurrence': {
+        const { taskId, task } = await resolveTask(String(a.task_ref));
+        const { rule } = await tf.getRecurrence(taskId);
+        return ok({ taskRef: `${task.project.key}-${task.number}`, rule });
+      }
+
+      case 'list_time_entries': {
+        const { taskId, task } = await resolveTask(String(a.task_ref));
+        const { entries, total } = await tf.listTimeEntries(taskId);
+        return ok({
+          taskRef: `${task.project.key}-${task.number}`,
+          totalMinutes: total,
+          entries: entries.map((entry) => ({
+            id: entry.id,
+            minutes: entry.minutes,
+            description: entry.description,
+            startedAt: entry.startedAt,
+            createdAt: entry.createdAt,
+            user: entry.user ? formatUser(entry.user) : undefined,
+          })),
         });
       }
 
@@ -883,6 +1086,7 @@ async function resolveTask(ref: string) {
 
 function formatProject(p: {
   id: string;
+  workspaceId?: string;
   key: string;
   name: string;
   color: string;
@@ -891,12 +1095,35 @@ function formatProject(p: {
 }) {
   return {
     id: p.id,
+    workspaceId: p.workspaceId,
     key: p.key,
     name: p.name,
     color: p.color,
     description: p.description,
     visibility: p.visibility,
     ref: `[${p.key}]`,
+  };
+}
+
+function optionalString(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  const normalized = String(value).trim();
+  return normalized || undefined;
+}
+
+function formatUser(user: {
+  id: string;
+  email?: string;
+  name?: string | null;
+  username?: string | null;
+  avatarUrl?: string | null;
+}) {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    username: user.username,
+    avatarUrl: user.avatarUrl,
   };
 }
 
@@ -1004,7 +1231,7 @@ function ok(data: unknown) {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // Use stderr — stdout is the MCP channel and must stay untouched.
-  process.stderr.write(`trovy-mcp ready — api=${apiUrl} version=1.0.3\n`);
+  process.stderr.write(`trovy-mcp ready — api=${apiUrl} version=1.0.8\n`);
 })().catch((e) => {
   process.stderr.write(`trovy-mcp fatal: ${e?.message ?? e}\n`);
   process.exit(1);
