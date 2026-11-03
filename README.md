@@ -9,8 +9,12 @@
 > "Create a task in TF called 'Investigate webhook timeout' with priority high"
 >
 > "What did I ship last week?"
+>
+> "List the milestones in TF, create a private milestone for client review, and assign TF-12 to it"
 
-Under the hood the server exposes 36 tools for workspaces, projects, delivery metrics, task lifecycle management, dependencies, recurrence, checklists, time tracking, users, and notifications.
+Under the hood the server exposes 41 tools for workspaces, projects, milestones, delivery metrics, task lifecycle management, dependencies, recurrence, checklists, time tracking, users, and notifications.
+
+Project milestones can be listed, created, updated, and deleted by project key or id. Tasks can be assigned to one milestone at creation or through `set_task_milestone` or `update_task`. Milestones are private by default; making one client-visible can activate the outcome portal. Deleting a milestone ungroups its deliverables and clears task milestone assignments.
 
 ## Setup
 
