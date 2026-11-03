@@ -10,7 +10,7 @@
  * reads the token from the `TROVY_TOKEN` env var (and `TROVY_API_URL`,
  * defaulting to `https://api.trovy.app`) and serves tools over stdio.
  *
- * Tools exposed (36 in v1.0.8, all bounded by the user's account permissions):
+ * Tools exposed (41, all bounded by the user's account permissions):
  *
  *   Projects:
  *     list_workspaces
@@ -19,6 +19,8 @@
  *     get_project
  *     list_project_labels
  *     get_project_metrics
+ *     list_project_milestones / create_project_milestone
+ *     update_project_milestone / delete_project_milestone
  *
  *   Tasks — read:
  *     search_tasks          search across projects/tasks/users
@@ -32,6 +34,7 @@
  *
  *   Tasks — write:
  *     create_task
+ *     set_task_milestone
  *     update_task_status
  *     add_comment
  *     link_pr               attach a GitHub PR URL
@@ -63,6 +66,11 @@ import {
   ErrorCode,
 } from '@modelcontextprotocol/sdk/types.js';
 import { TrovyClient, TrovyError, parseTaskRef } from '@trovyhq/sdk';
+import {
+  ProjectMilestoneClient,
+  findMilestone,
+  type MilestoneChanges,
+} from './project-milestones.js';
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────
 
@@ -78,11 +86,12 @@ if (!token) {
 }
 
 const tf = new TrovyClient({ apiUrl, token });
+const milestones = new ProjectMilestoneClient(apiUrl, token);
 
 const server = new Server(
   {
     name: 'trovy',
-    version: '1.0.8',
+    version: '1.0.9',
   },
   {
     capabilities: { tools: {} },
@@ -202,6 +211,64 @@ const TOOLS = [
         project_key_or_id: { type: 'string', description: 'Project key (for example "TF") or id.' },
       },
       required: ['project_key_or_id'],
+    },
+  },
+  {
+    name: 'list_project_milestones',
+    description:
+      'List the project milestones, including ids, stable references, target dates and client visibility. Use a reference or id when assigning a task.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_key_or_id: { type: 'string', description: 'Project key or id.' },
+      },
+      required: ['project_key_or_id'],
+    },
+  },
+  {
+    name: 'create_project_milestone',
+    description:
+      'Create a project milestone. It starts private unless client_visible is explicitly true. Requires project admin access.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_key_or_id: { type: 'string', description: 'Project key or id.' },
+        title: { type: 'string', description: 'Milestone title, 1–200 characters.' },
+        description: { type: 'string', description: 'Optional objective, up to 4000 characters.' },
+        target_date: { type: 'string', description: 'Optional date in YYYY-MM-DD format.' },
+        client_visible: { type: 'boolean', description: 'Default false.' },
+      },
+      required: ['project_key_or_id', 'title'],
+    },
+  },
+  {
+    name: 'update_project_milestone',
+    description:
+      'Update a project milestone. Pass null for description or target_date to clear them. Requires project admin access.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_key_or_id: { type: 'string', description: 'Project key or id.' },
+        milestone_ref_or_id: { type: 'string', description: 'Milestone reference such as M1, or id.' },
+        title: { type: 'string' },
+        description: { type: ['string', 'null'] },
+        target_date: { type: ['string', 'null'], description: 'YYYY-MM-DD, or null to clear.' },
+        client_visible: { type: 'boolean' },
+      },
+      required: ['project_key_or_id', 'milestone_ref_or_id'],
+    },
+  },
+  {
+    name: 'delete_project_milestone',
+    description:
+      'Delete a milestone. Its linked deliverables become ungrouped and task milestone assignments are cleared. Requires an explicit user request and project admin access.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_key_or_id: { type: 'string', description: 'Project key or id.' },
+        milestone_ref_or_id: { type: 'string', description: 'Milestone reference such as M1, or id.' },
+      },
+      required: ['project_key_or_id', 'milestone_ref_or_id'],
     },
   },
   {
@@ -325,6 +392,10 @@ const TOOLS = [
         },
         due_date: { type: 'string', description: 'ISO datetime for due date.' },
         estimate_minutes: { type: 'number' },
+        milestone_ref_or_id: {
+          type: 'string',
+          description: 'Optional project milestone reference (for example M1) or id.',
+        },
       },
       required: ['project_key_or_id', 'title'],
     },
@@ -343,6 +414,20 @@ const TOOLS = [
         },
       },
       required: ['task_ref', 'status'],
+    },
+  },
+  {
+    name: 'set_task_milestone',
+    description:
+      'Assign a task to one milestone in its project, or clear the assignment with clear: true. Does not change deliverable links.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        task_ref: { type: 'string', description: 'Task id or short reference like TF-12.' },
+        milestone_ref_or_id: { type: 'string', description: 'Milestone reference such as M1, or id.' },
+        clear: { type: 'boolean', description: 'Set true to remove the milestone assignment.' },
+      },
+      required: ['task_ref'],
     },
   },
   {
@@ -522,6 +607,8 @@ const TOOLS = [
         type: { type: 'string', enum: ['TASK', 'BUG', 'FEATURE', 'IMPROVEMENT', 'EPIC', 'STORY'] },
         due_date: { type: 'string', description: 'ISO datetime. Pass null to clear it.' },
         estimate_minutes: { type: 'number', description: 'Estimated effort in minutes.' },
+        milestone_ref_or_id: { type: 'string', description: 'Assign a project milestone by reference or id.' },
+        clear_milestone: { type: 'boolean', description: 'Set true to remove the milestone assignment.' },
       },
       required: ['task_ref'],
     },
@@ -678,6 +765,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
       }
 
+      case 'list_project_milestones': {
+        const { id: projectId } = await tf.resolveProjectKeyAndId(String(a.project_key_or_id));
+        const structure = await milestones.get(projectId);
+        return ok({
+          projectId,
+          revision: structure.revision,
+          canEdit: structure.canEdit,
+          count: structure.milestones.length,
+          milestones: structure.milestones,
+        });
+      }
+
       case 'get_project_metrics': {
         const projectRef = String(a.project_key_or_id);
         const rangeDays = a.range_days === undefined ? 30 : Number(a.range_days);
@@ -818,6 +917,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       // ── Write ───────────────────────────────────────────────────────────
 
+      case 'create_project_milestone': {
+        const { id: projectId } = await tf.resolveProjectKeyAndId(String(a.project_key_or_id));
+        const changes = parseMilestoneChanges(a);
+        if (changes.title === undefined) {
+          throw new McpError(ErrorCode.InvalidParams, 'title is required');
+        }
+        const milestone = await milestones.create(projectId, changes);
+        return ok({ projectId, milestone });
+      }
+
+      case 'update_project_milestone': {
+        const { id: projectId } = await tf.resolveProjectKeyAndId(String(a.project_key_or_id));
+        const changes = parseMilestoneChanges(a);
+        if (Object.keys(changes).length === 0) {
+          throw new McpError(ErrorCode.InvalidParams, 'Provide at least one milestone field to update');
+        }
+        const milestone = await milestones.update(
+          projectId,
+          requiredText(a.milestone_ref_or_id, 'milestone_ref_or_id'),
+          changes,
+        );
+        return ok({ projectId, milestone });
+      }
+
+      case 'delete_project_milestone': {
+        const { id: projectId } = await tf.resolveProjectKeyAndId(String(a.project_key_or_id));
+        const result = await milestones.remove(
+          projectId,
+          requiredText(a.milestone_ref_or_id, 'milestone_ref_or_id'),
+        );
+        return ok({ projectId, deleted: result.reference, unlinkedDeliverables: result.unlinkedDeliverables });
+      }
+
       case 'create_task': {
         const { id: projectId } = await tf.resolveProjectKeyAndId(String(a.project_key_or_id));
         let assigneeIds: string[] | undefined;
@@ -832,7 +964,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           assigneeIds = found.filter((x): x is string => Boolean(x));
         }
 
-        const { task } = await tf.createTask({
+        const milestoneId = a.milestone_ref_or_id === undefined
+          ? undefined
+          : await resolveMilestoneId(projectId, requiredText(a.milestone_ref_or_id, 'milestone_ref_or_id'));
+        const taskInput = {
           projectId,
           title: String(a.title),
           description: a.description ? String(a.description) : undefined,
@@ -841,7 +976,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           assigneeIds,
           dueDate: a.due_date,
           estimateMinutes: a.estimate_minutes,
-        });
+          ...(milestoneId === undefined ? {} : { milestoneId }),
+        };
+        const { task } = await tf.createTask(taskInput);
+        return ok(formatTask(task));
+      }
+
+      case 'set_task_milestone': {
+        const { taskId, projectId } = await resolveTask(String(a.task_ref));
+        const milestoneId = await taskMilestoneSelection(projectId, a, 'clear');
+        const patch: Parameters<typeof tf.updateTask>[1] & { milestoneId: string | null } = {
+          milestoneId,
+        };
+        const { task } = await tf.updateTask(taskId, patch);
         return ok(formatTask(task));
       }
 
@@ -853,7 +1000,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'update_task': {
-        const { taskId } = await resolveTask(String(a.task_ref));
+        const { taskId, projectId } = await resolveTask(String(a.task_ref));
         const patch: Record<string, unknown> = {};
         if (a.title !== undefined) patch.title = String(a.title);
         if (a.description !== undefined) patch.description = a.description === '' ? null : String(a.description);
@@ -861,6 +1008,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (a.type !== undefined) patch.type = String(a.type);
         if (a.due_date !== undefined) patch.dueDate = a.due_date;
         if (a.estimate_minutes !== undefined) patch.estimateMinutes = Number(a.estimate_minutes);
+        if (a.milestone_ref_or_id !== undefined || a.clear_milestone === true) {
+          patch.milestoneId = await taskMilestoneSelection(projectId, a, 'clear_milestone');
+        }
         if (!Object.keys(patch).length) {
           throw new McpError(ErrorCode.InvalidParams, 'Provide at least one field to update');
         }
@@ -1084,6 +1234,75 @@ async function resolveTask(ref: string) {
   };
 }
 
+function requiredText(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new McpError(ErrorCode.InvalidParams, `${field} is required`);
+  }
+  return value.trim();
+}
+
+function parseMilestoneChanges(input: Record<string, unknown>): MilestoneChanges {
+  const changes: MilestoneChanges = {};
+  if (input.title !== undefined) {
+    const title = requiredText(input.title, 'title');
+    if (title.length > 200) throw new McpError(ErrorCode.InvalidParams, 'title must not exceed 200 characters');
+    changes.title = title;
+  }
+  if (input.description !== undefined) {
+    if (input.description !== null && typeof input.description !== 'string') {
+      throw new McpError(ErrorCode.InvalidParams, 'description must be a string or null');
+    }
+    const description = typeof input.description === 'string' ? input.description.trim() : null;
+    if (description && description.length > 4_000) {
+      throw new McpError(ErrorCode.InvalidParams, 'description must not exceed 4000 characters');
+    }
+    changes.description = description || null;
+  }
+  if (input.target_date !== undefined) {
+    const value = input.target_date;
+    if (value !== null) {
+      if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        throw new McpError(ErrorCode.InvalidParams, 'target_date must use YYYY-MM-DD or null');
+      }
+      const parsed = new Date(`${value}T00:00:00.000Z`);
+      if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+        throw new McpError(ErrorCode.InvalidParams, 'target_date is not a valid date');
+      }
+    }
+    changes.targetDate = value;
+  }
+  if (input.client_visible !== undefined) {
+    if (typeof input.client_visible !== 'boolean') {
+      throw new McpError(ErrorCode.InvalidParams, 'client_visible must be a boolean');
+    }
+    changes.clientVisible = input.client_visible;
+  }
+  return changes;
+}
+
+async function resolveMilestoneId(projectId: string, referenceOrId: string): Promise<string> {
+  const milestone = findMilestone(await milestones.get(projectId), referenceOrId);
+  if (!milestone.id) throw new McpError(ErrorCode.InternalError, 'Milestone is missing its id');
+  return milestone.id;
+}
+
+async function taskMilestoneSelection(
+  projectId: string,
+  input: Record<string, unknown>,
+  clearField: 'clear' | 'clear_milestone',
+): Promise<string | null> {
+  if (input[clearField] === true) {
+    if (input.milestone_ref_or_id !== undefined) {
+      throw new McpError(ErrorCode.InvalidParams, `Do not combine ${clearField} with milestone_ref_or_id`);
+    }
+    return null;
+  }
+  if (input[clearField] !== undefined && input[clearField] !== false) {
+    throw new McpError(ErrorCode.InvalidParams, `${clearField} must be a boolean`);
+  }
+  return resolveMilestoneId(projectId, requiredText(input.milestone_ref_or_id, 'milestone_ref_or_id'));
+}
+
 function formatProject(p: {
   id: string;
   workspaceId?: string;
@@ -1153,6 +1372,7 @@ function formatTask(t: any) {
     status: t.status,
     priority: t.priority,
     type: t.type,
+    milestoneId: t.milestoneId ?? null,
     storyPoints: t.storyPoints,
     estimateMinutes: t.estimateMinutes,
     dueDate: t.dueDate,
@@ -1231,7 +1451,7 @@ function ok(data: unknown) {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // Use stderr — stdout is the MCP channel and must stay untouched.
-  process.stderr.write(`trovy-mcp ready — api=${apiUrl} version=1.0.8\n`);
+  process.stderr.write(`trovy-mcp ready — api=${apiUrl} version=1.0.9\n`);
 })().catch((e) => {
   process.stderr.write(`trovy-mcp fatal: ${e?.message ?? e}\n`);
   process.exit(1);
