@@ -100,11 +100,9 @@ pnpm run smoke:pack
 
 The package depends on the published `@trovyhq/sdk`; publish the SDK first if its API changed.
 
-For the MCP server:
+Releases use npm trusted publishing from the GitHub Actions `Publish` workflow. An npm package maintainer must configure the trusted publisher on `@trovyhq/mcp-server` with GitHub organization `trovyhq`, repository `mcp-server`, workflow filename `publish.yml`, and direct `npm publish` permission. The workflow uses OIDC and automatically includes provenance; it does not need an npm token.
 
-```bash
-npm publish --provenance --access public
-```
+After the package version is merged into `main`, dispatch the `Publish` workflow from that branch. Confirm the new version with `npm view @trovyhq/mcp-server version`.
 
 ## License
 
