@@ -31,7 +31,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Verify SDK dependency is published
-        run: npm view @trovyhq/sdk@1.0.1 version
+        run: npm view @trovyhq/sdk@1.0.6 version
 
       - name: Typecheck
         run: pnpm run typecheck

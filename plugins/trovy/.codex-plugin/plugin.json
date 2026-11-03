@@ -1,7 +1,7 @@
 {
   "name": "trovy",
-  "version": "1.0.3",
-  "description": "Manage projects, tasks, dependencies, comments, time, and notifications in Trovy.",
+  "version": "1.0.4",
+  "description": "Manage projects, milestones, tasks, dependencies, comments, time, and notifications in Trovy.",
   "author": {
     "name": "Trovy",
     "url": "https://trovy.app"
@@ -14,7 +14,7 @@
   "interface": {
     "displayName": "Trovy",
     "shortDescription": "Plan and update work with Trovy",
-    "longDescription": "Connect Codex to Trovy to find projects and tasks, manage status and dependencies, collaborate through comments, and track work safely.",
+    "longDescription": "Connect Codex to Trovy to find projects, manage milestones and tasks, track dependencies, collaborate through comments, and track work safely.",
     "developerName": "Trovy",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
